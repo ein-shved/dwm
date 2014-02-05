@@ -163,7 +163,7 @@ static void detachstack(Client *c);
 static Monitor *dirtomon(int dir);
 static void drawbar(Monitor *m);
 static void drawbars(void);
-static void drawtaggrid(Monitor *m, int *x_pos, unsigned int occ); 
+static void drawtaggrid(Monitor *m, int *x_pos, unsigned int occ);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
 static void focus(Client *c);
@@ -717,7 +717,7 @@ drawbar(Monitor *m) {
     if (drawtagmask & DRAWTAGGRID) {
         drawtaggrid(m,&x,occ);
     }
-	
+
     drw_setscheme(drw, &scheme[SchemeNorm]);
 	w = blw = TEXTW(m->ltsymbol);
 
@@ -757,11 +757,11 @@ drawbars(void) {
 	for(m = mons; m; m = m->next)
 		drawbar(m);
 }
-void drawtaggrid(Monitor *m, int *x_pos, unsigned int occ) 
+void drawtaggrid(Monitor *m, int *x_pos, unsigned int occ)
 {
     unsigned int x, y, h, max_x, columns;
     int invert, i,j, k;
-	
+
     h = bh / tagrows;
     x = max_x = *x_pos;
     y = 0;
@@ -1638,7 +1638,7 @@ void switchtag(const Arg *arg)
     unsigned int pos, i;
     int col, row;
     Arg new_arg;
-    
+
     columns = LENGTH(tags) / tagrows + ((LENGTH(tags) % tagrows > 0) ? 1 : 0);
 
     for (i = 0; i < LENGTH(tags); ++i) {
@@ -1658,7 +1658,7 @@ void switchtag(const Arg *arg)
                 row --;
             } while (pos >= LENGTH(tags));
         }
-        if (arg->ui & SWITCHTAG_DOWN) {     /* DOWN */ 
+        if (arg->ui & SWITCHTAG_DOWN) {     /* DOWN */
             row ++;
             if (row >= tagrows) {
                 row = 0;
@@ -1691,7 +1691,7 @@ void switchtag(const Arg *arg)
             }
         }
         new_tagset |= 1 << pos;
-    } 
+    }
     new_arg.ui = new_tagset;
     if (arg->ui & SWITCHTAG_TOGGLETAG) {
         toggletag(&new_arg);
