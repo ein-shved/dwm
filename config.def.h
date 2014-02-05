@@ -29,7 +29,7 @@ static const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 #define SWITCHTAG_VIEW              1 << 6
 #define SWITCHTAG_TOGGLEVIEW        1 << 7
 
-static const unsigned int drawtagmask = DRAWTAGGRID; /* | DRAWCLASSICTAGS to show classig row of tags */
+static const unsigned int drawtagmask = DRAWTAGGRID; /* | DRAWCLASSICTAGS to show classic row of tags */
 static const int tagrows = 3;
 
 static const Rule rules[] = {

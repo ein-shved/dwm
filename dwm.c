@@ -717,10 +717,8 @@ drawbar(Monitor *m) {
     if (drawtagmask & DRAWTAGGRID) {
         drawtaggrid(m,&x,occ);
     }
-
-    drw_setscheme(drw, &scheme[SchemeNorm]);
 	w = blw = TEXTW(m->ltsymbol);
-
+	drw_setscheme(drw, &scheme[SchemeNorm]);
 	drw_text(drw, x, 0, w, bh, m->ltsymbol, 0);
 	x += w;
 	xx = x;
