@@ -262,7 +262,7 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[MapRequest] = maprequest,
 	[MotionNotify] = motionnotify,
 	[PropertyNotify] = propertynotify,
-	[UnmapNotify] = unmapnotify,
+	[UnmapNotify] = unmapnotify
 };
 static Atom wmatom[WMLast], netatom[NetLast];
 static Bool running = True;
@@ -700,7 +700,8 @@ dirtomon(int dir) {
 
 void
 drawbar(Monitor *m) {
-	int x, xx, w, ww = 0;
+	int x, xx, w;
+    int ww = 0;
 	unsigned int i, occ = 0, urg = 0;
 	Client *c;
 
@@ -725,10 +726,11 @@ drawbar(Monitor *m) {
 	xx = x;
 	if(m == selmon) { /* status is only drawn on selected monitor */
 		w = TEXTW(stext);
+		x = m->ww - w;
         if (showxkb) {
             ww = TEXTW(xkb_layouts[xkbGlobal.group]);
+            x -= ww;
         }
-		x = m->ww - w - ww;
 		if(x < xx) {
 			x = xx;
 			w = m->ww - xx;
@@ -1357,13 +1359,13 @@ restack(Monitor *m) {
 	while(XCheckMaskEvent(dpy, EnterWindowMask, &ev));
 }
 
-
 void
 run(void) {
 	XEvent ev;
 	/* main event loop */
 	XSync(dpy, False);
-	while(running && !XNextEvent(dpy, &ev)) {
+	while(running && !XNextEvent(dpy, &ev))
+    {
         if(ev.type == xkbEventType) {
             xkbeventnotify(&ev);
             continue;
@@ -2078,7 +2080,9 @@ void xkbeventnotify(XEvent *e)
         if (selmon != NULL && selmon->sel != NULL) {
             selmon->sel->xkb = xkbGlobal;
         }
-        drawbars();
+        if (showxkb) {
+            drawbars();
+        }
         break;
     }
 }
@@ -2105,8 +2109,7 @@ main(int argc, char *argv[]) {
 		fputs("warning: no locale support\n", stderr);
 	if(!(dpy = XOpenDisplay(NULL)))
 		die("dwm: cannot open display\n");
-	
-    checkotherwm();
+	checkotherwm();
 	setup();
 	scan();
 	run();
