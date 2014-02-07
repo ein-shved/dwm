@@ -763,15 +763,16 @@ void drawtaggrid(Monitor *m, int *x_pos, unsigned int occ)
     x = max_x = *x_pos;
     y = 0;
     columns = LENGTH(tags) / tagrows + ((LENGTH(tags) % tagrows > 0) ? 1 : 0);
+
+    /* Firstly we will fill the borders of squares */
+    XSetForeground(drw->dpy, drw->gc, scheme[SchemeNorm].border->rgb);
+    XFillRectangle(dpy, drw->drawable, drw->gc, x, y, h*columns + 1, bh);
+
     /* We well draw LENGTH(tags) squares in tagraws raws. */
 	for(j = 0,  i= 0; j < tagrows; j++) {
         x = *x_pos;
         for (k = 0; k < columns && i < LENGTH(tags); k++, i++) {
 		    invert = m->tagset[m->seltags] & 1 << i ? 0 : 1;
-
-            /* Firstly we will fill the borders of squares */
-            XSetForeground(drw->dpy, drw->gc, scheme[SchemeNorm].border->rgb);
-            XFillRectangle(dpy, drw->drawable, drw->gc, x, y, h, h);
 
             /* Select active color for current square */
             XSetForeground(drw->dpy, drw->gc, !invert ? scheme[SchemeSel].bg->rgb :
