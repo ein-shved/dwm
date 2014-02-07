@@ -36,6 +36,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xproto.h>
 #include <X11/Xutil.h>
+#include <X11/XKBlib.h>
 #ifdef XINERAMA
 #include <X11/extensions/Xinerama.h>
 #endif /* XINERAMA */
@@ -81,6 +82,9 @@ typedef struct {
 	const Arg arg;
 } Button;
 
+typedef struct XkbInfo {
+    int group;
+} XkbInfo;
 typedef struct Monitor Monitor;
 typedef struct Client Client;
 struct Client {
@@ -96,6 +100,7 @@ struct Client {
 	Client *snext;
 	Monitor *mon;
 	Window win;
+    XkbInfo xkb;
 };
 
 typedef struct {
@@ -231,6 +236,7 @@ static Monitor *wintomon(Window w);
 static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
+static void xkbeventnotify(XEvent *e);
 static void zoom(const Arg *arg);
 
 /* variables */
@@ -241,6 +247,7 @@ static int sw, sh;           /* X display screen geometry width, height */
 static int bh, blw = 0;      /* bar geometry */
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0;
+static int xkbEventType = 0;
 static void (*handler[LASTEvent]) (XEvent *) = {
 	[ButtonPress] = buttonpress,
 	[ClientMessage] = clientmessage,
@@ -255,7 +262,7 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[MapRequest] = maprequest,
 	[MotionNotify] = motionnotify,
 	[PropertyNotify] = propertynotify,
-	[UnmapNotify] = unmapnotify
+	[UnmapNotify] = unmapnotify,
 };
 static Atom wmatom[WMLast], netatom[NetLast];
 static Bool running = True;
@@ -266,6 +273,7 @@ static Drw *drw;
 static Fnt *fnt;
 static Monitor *mons, *selmon;
 static Window root;
+static XkbInfo xkbGlobal;
 
 /* configuration, allows nested code to access above variables */
 #include "config.h"
@@ -692,7 +700,7 @@ dirtomon(int dir) {
 
 void
 drawbar(Monitor *m) {
-	int x, xx, w;
+	int x, xx, w, ww = 0;
 	unsigned int i, occ = 0, urg = 0;
 	Client *c;
 
@@ -717,15 +725,23 @@ drawbar(Monitor *m) {
 	xx = x;
 	if(m == selmon) { /* status is only drawn on selected monitor */
 		w = TEXTW(stext);
-		x = m->ww - w;
+        if (showxkb) {
+            ww = TEXTW(xkb_layouts[xkbGlobal.group]);
+        }
+		x = m->ww - w - ww;
 		if(x < xx) {
 			x = xx;
 			w = m->ww - xx;
 		}
 		drw_text(drw, x, 0, w, bh, stext, 0);
+        if (showxkb) {
+            drw_setscheme(drw, &scheme[SchemeNorm]);
+            drw_text(drw, x+w, 0, ww, bh, xkb_layouts[xkbGlobal.group], 0);
+        }
 	}
 	else
 		x = m->ww;
+
 	if((w = x - xx) > bh) {
 		x = xx;
 		if(m->sel) {
@@ -1038,6 +1054,9 @@ manage(Window w, XWindowAttributes *wa) {
 	           && (c->x + (c->w / 2) < c->mon->wx + c->mon->ww)) ? bh : c->mon->my);
 	c->bw = borderpx;
 
+    /* Set current xkb state */
+    c->xkb = xkbGlobal;
+
 	wc.border_width = c->bw;
 	XConfigureWindow(dpy, w, CWBorderWidth, &wc);
 	XSetWindowBorder(dpy, w, scheme[SchemeNorm].border->rgb);
@@ -1338,14 +1357,20 @@ restack(Monitor *m) {
 	while(XCheckMaskEvent(dpy, EnterWindowMask, &ev));
 }
 
+
 void
 run(void) {
 	XEvent ev;
 	/* main event loop */
 	XSync(dpy, False);
-	while(running && !XNextEvent(dpy, &ev))
+	while(running && !XNextEvent(dpy, &ev)) {
+        if(ev.type == xkbEventType) {
+            xkbeventnotify(&ev);
+            continue;
+        }
 		if(handler[ev.type])
 			handler[ev.type](&ev); /* call handler */
+    }
 }
 
 void
@@ -1428,6 +1453,7 @@ setfocus(Client *c) {
 		XChangeProperty(dpy, root, netatom[NetActiveWindow],
  		                XA_WINDOW, 32, PropModeReplace,
  		                (unsigned char *) &(c->win), 1);
+        XkbLockGroup(dpy, XkbUseCoreKbd, c->xkb.group);
 	}
 	sendevent(c, wmatom[WMTakeFocus]);
 }
@@ -1490,6 +1516,7 @@ setmfact(const Arg *arg) {
 void
 setup(void) {
 	XSetWindowAttributes wa;
+    XkbStateRec xkbstate;
 
 	/* clean up any zombies immediately */
 	sigchld(0);
@@ -1541,6 +1568,16 @@ setup(void) {
 	                |EnterWindowMask|LeaveWindowMask|StructureNotifyMask|PropertyChangeMask;
 	XChangeWindowAttributes(dpy, root, CWEventMask|CWCursor, &wa);
 	XSelectInput(dpy, root, wa.event_mask);
+
+    /* get xkb extension info, events and current state */
+    if (!XkbQueryExtension(dpy, NULL, &xkbEventType, NULL, NULL, NULL)) {
+		fputs("warning: can not query xkb extension\n", stderr);
+    }
+    XkbSelectEventDetails(dpy, XkbUseCoreKbd, XkbStateNotify,
+                          XkbAllStateComponentsMask, XkbGroupStateMask);
+    XkbGetState(dpy, XkbUseCoreKbd, &xkbstate);
+    xkbGlobal.group = xkbstate.locked_group;
+
 	grabkeys();
 	focus(NULL);
 }
@@ -2030,6 +2067,21 @@ xerrorstart(Display *dpy, XErrorEvent *ee) {
 	return -1;
 }
 
+void xkbeventnotify(XEvent *e)
+{
+    XkbEvent *ev;
+
+    ev = (XkbEvent *) e;
+    switch (ev->any.xkb_type) {
+    case XkbStateNotify:
+        xkbGlobal.group = ev->state.locked_group;
+        if (selmon != NULL && selmon->sel != NULL) {
+            selmon->sel->xkb = xkbGlobal;
+        }
+        drawbars();
+        break;
+    }
+}
 void
 zoom(const Arg *arg) {
 	Client *c = selmon->sel;
@@ -2053,7 +2105,8 @@ main(int argc, char *argv[]) {
 		fputs("warning: no locale support\n", stderr);
 	if(!(dpy = XOpenDisplay(NULL)))
 		die("dwm: cannot open display\n");
-	checkotherwm();
+	
+    checkotherwm();
 	setup();
 	scan();
 	run();
