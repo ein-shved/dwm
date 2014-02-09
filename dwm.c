@@ -82,11 +82,9 @@ typedef struct {
 	const Arg arg;
 } Button;
 
-typedef struct XkbInfo {
-    int group;
-} XkbInfo;
 typedef struct Monitor Monitor;
 typedef struct Client Client;
+typedef struct XkbInfo XkbInfo;
 struct Client {
 	char name[256];
 	float mina, maxa;
@@ -100,7 +98,13 @@ struct Client {
 	Client *snext;
 	Monitor *mon;
 	Window win;
-    XkbInfo xkb;
+    XkbInfo *xkb;
+};
+struct XkbInfo {
+    XkbInfo *next;
+    XkbInfo *prev;
+    int group;
+    Window w;
 };
 
 typedef struct {
@@ -170,6 +174,7 @@ static void drawbar(Monitor *m);
 static void drawbars(void);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
+static XkbInfo *findxkb(Window w);
 static void focus(Client *c);
 static void focusin(XEvent *e);
 static void focusmon(const Arg *arg);
@@ -274,6 +279,7 @@ static Fnt *fnt;
 static Monitor *mons, *selmon;
 static Window root;
 static XkbInfo xkbGlobal;
+static XkbInfo *xkbSaved = NULL;
 
 /* configuration, allows nested code to access above variables */
 #include "config.h"
@@ -795,6 +801,18 @@ expose(XEvent *e) {
 		drawbar(m);
 }
 
+XkbInfo *
+findxkb(Window w)
+{
+    XkbInfo *xkb;
+    for (xkb = xkbSaved; xkb != NULL; xkb=xkb->next) {
+        if (xkb->w == w) {
+            return xkb;
+        }
+    }
+    return NULL;
+}
+
 void
 focus(Client *c) {
 	if(!c || !ISVISIBLE(c))
@@ -1026,6 +1044,7 @@ manage(Window w, XWindowAttributes *wa) {
 	Client *c, *t = NULL;
 	Window trans = None;
 	XWindowChanges wc;
+    XkbInfo *xkb;
 
 	if(!(c = calloc(1, sizeof(Client))))
 		die("fatal: could not malloc() %u bytes\n", sizeof(Client));
@@ -1057,7 +1076,22 @@ manage(Window w, XWindowAttributes *wa) {
 	c->bw = borderpx;
 
     /* Set current xkb state */
-    c->xkb = xkbGlobal;
+    xkb = findxkb(c->win);
+    if (xkb == NULL) {
+        xkb = malloc(sizeof *xkb);
+        if (xkb == NULL) {
+            die("fatal: could not malloc() %u bytes\n", sizeof *xkb);
+        }
+        xkb->group = xkbGlobal.group;
+        xkb->w = c->win;
+        xkb->next = xkbSaved;
+        if (xkbSaved != NULL) {
+            xkbSaved->prev = xkb;
+        }
+        xkb->prev = NULL;
+        xkbSaved = xkb;
+    }
+    c->xkb = xkb;
 
 	wc.border_width = c->bw;
 	XConfigureWindow(dpy, w, CWBorderWidth, &wc);
@@ -1455,7 +1489,7 @@ setfocus(Client *c) {
 		XChangeProperty(dpy, root, netatom[NetActiveWindow],
  		                XA_WINDOW, 32, PropModeReplace,
  		                (unsigned char *) &(c->win), 1);
-        XkbLockGroup(dpy, XkbUseCoreKbd, c->xkb.group);
+        XkbLockGroup(dpy, XkbUseCoreKbd, c->xkb->group);
 	}
 	sendevent(c, wmatom[WMTakeFocus]);
 }
@@ -1726,6 +1760,7 @@ void
 unmanage(Client *c, Bool destroyed) {
 	Monitor *m = c->mon;
 	XWindowChanges wc;
+    XkbInfo *xkb;
 
 	/* The server grab construct avoids race conditions. */
 	detach(c);
@@ -1741,6 +1776,18 @@ unmanage(Client *c, Bool destroyed) {
 		XSetErrorHandler(xerror);
 		XUngrabServer(dpy);
 	}
+    else {
+        xkb = findxkb(c->win);
+        if (xkb != NULL) {
+            if (xkb->prev) {
+                xkb->prev->next = xkb->next;
+            }
+            if (xkb->next) {
+                xkb->next->prev = xkb->prev;
+            }
+            free(xkb);
+        }
+    }
 	free(c);
 	focus(NULL);
 	updateclientlist();
@@ -2078,7 +2125,7 @@ void xkbeventnotify(XEvent *e)
     case XkbStateNotify:
         xkbGlobal.group = ev->state.locked_group;
         if (selmon != NULL && selmon->sel != NULL) {
-            selmon->sel->xkb = xkbGlobal;
+            selmon->sel->xkb->group = xkbGlobal.group;
         }
         if (showxkb) {
             drawbars();
