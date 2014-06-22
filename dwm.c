@@ -411,11 +411,13 @@ attachstack(Client *c) {
 void
 buttonpress(XEvent *e) {
 	unsigned int i, x, click;
+	unsigned int columns;
 	Arg arg = {0};
 	Client *c;
 	Monitor *m;
 	XButtonPressedEvent *ev = &e->xbutton;
 
+	columns = LENGTH(tags) / tagrows + ((LENGTH(tags) % tagrows > 0) ? 1 : 0);
 	click = ClkRootWin;
 	/* focus monitor if necessary */
 	if((m = wintomon(ev->window)) && m != selmon) {
@@ -425,14 +427,24 @@ buttonpress(XEvent *e) {
 	}
 	if(ev->window == selmon->barwin) {
 		i = x = 0;
+        if (drawtagmask & DRAWCLASSICTAGS)
 		do
 			x += TEXTW(tags[i]);
 		while(ev->x >= x && ++i < LENGTH(tags));
-		if(i < LENGTH(tags)) {
+		if(i < LENGTH(tags) && (drawtagmask & DRAWCLASSICTAGS)) {
 			click = ClkTagBar;
 			arg.ui = 1 << i;
 		}
-		else if(ev->x < x + blw)
+		else if(ev->x < x + columns * bh / tagrows && (drawtagmask & DRAWTAGGRID)) {
+			click = ClkTagBar;
+			i = (ev->x - x) / (bh / tagrows);
+			i = i + columns * (ev->y / (bh / tagrows));
+			if (i >= LENGTH(tags)) {
+				i = LENGTH(tags) - 1;
+			}
+			arg.ui = 1 << i;
+		}
+		else if(ev->x < x + blw + columns * bh / tagrows)
 			click = ClkLtSymbol;
 		else if(ev->x > selmon->ww - TEXTW(stext))
 			click = ClkStatusText;
@@ -704,7 +716,7 @@ drawbar(Monitor *m) {
 			urg |= c->tags;
 	}
 	x = 0;
-    if (drawtagmask & DRAWCLASSICTAGS)
+	if (drawtagmask & DRAWCLASSICTAGS)
 	for(i = 0; i < LENGTH(tags); i++) {
 		w = TEXTW(tags[i]);
 		drw_setscheme(drw, m->tagset[m->seltags] & 1 << i ? &scheme[SchemeSel] : &scheme[SchemeNorm]);
@@ -713,9 +725,9 @@ drawbar(Monitor *m) {
 		           occ & 1 << i, urg & 1 << i);
 		x += w;
 	}
-    if (drawtagmask & DRAWTAGGRID) {
-        drawtaggrid(m,&x,occ);
-    }
+	if (drawtagmask & DRAWTAGGRID) {
+		drawtaggrid(m,&x,occ);
+	}
 	w = blw = TEXTW(m->ltsymbol);
 	drw_setscheme(drw, &scheme[SchemeNorm]);
 	drw_text(drw, x, 0, w, bh, m->ltsymbol, 0);
@@ -768,7 +780,7 @@ void drawtaggrid(Monitor *m, int *x_pos, unsigned int occ)
     XSetForeground(drw->dpy, drw->gc, scheme[SchemeNorm].border->rgb);
     XFillRectangle(dpy, drw->drawable, drw->gc, x, y, h*columns + 1, bh);
 
-    /* We well draw LENGTH(tags) squares in tagraws raws. */
+    /* We will draw LENGTH(tags) squares in tagraws raws. */
 	for(j = 0,  i= 0; j < tagrows; j++) {
         x = *x_pos;
         for (k = 0; k < columns && i < LENGTH(tags); k++, i++) {
