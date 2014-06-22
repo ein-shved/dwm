@@ -147,6 +147,7 @@ typedef struct {
 	unsigned int tags;
 	Bool isfloating;
 	int monitor;
+    int xkb_layout;
 } Rule;
 
 /* function declarations */
@@ -166,6 +167,7 @@ static void configure(Client *c);
 static void configurenotify(XEvent *e);
 static void configurerequest(XEvent *e);
 static Monitor *createmon(void);
+static XkbInfo *createxkb(Window w);
 static void destroynotify(XEvent *e);
 static void detach(Client *c);
 static void detachstack(Client *c);
@@ -313,6 +315,9 @@ applyrules(Client *c) {
 			for(m = mons; m && m->num != r->monitor; m = m->next);
 			if(m)
 				c->mon = m;
+            if(r->xkb_layout > -1 ) {
+                c->xkb->group = r->xkb_layout;
+            }
 		}
 	}
 	if(ch.res_class)
@@ -657,6 +662,25 @@ createmon(void) {
 	m->lt[1] = &layouts[1 % LENGTH(layouts)];
 	strncpy(m->ltsymbol, layouts[0].symbol, sizeof m->ltsymbol);
 	return m;
+}
+static XkbInfo *
+createxkb(Window w){
+    XkbInfo *xkb;
+
+    xkb = malloc(sizeof *xkb);
+    if (xkb == NULL) {
+        die("fatal: could not malloc() %u bytes\n", sizeof *xkb);
+    }
+    xkb->group = xkbGlobal.group;
+    xkb->w = w;
+    xkb->next = xkbSaved;
+    if (xkbSaved != NULL) {
+        xkbSaved->prev = xkb;
+    }
+    xkb->prev = NULL;
+    xkbSaved = xkb;
+
+    return xkb;
 }
 
 void
@@ -1050,6 +1074,14 @@ manage(Window w, XWindowAttributes *wa) {
 		die("fatal: could not malloc() %u bytes\n", sizeof(Client));
 	c->win = w;
 	updatetitle(c);
+
+    /* Setting current xkb state must be before applyrules */
+    xkb = findxkb(c->win);
+    if (xkb == NULL) {
+        xkb = createxkb(c->win);
+    }
+    c->xkb = xkb;
+
 	if(XGetTransientForHint(dpy, w, &trans) && (t = wintoclient(trans))) {
 		c->mon = t->mon;
 		c->tags = t->tags;
@@ -1074,24 +1106,6 @@ manage(Window w, XWindowAttributes *wa) {
 	c->y = MAX(c->y, ((c->mon->by == c->mon->my) && (c->x + (c->w / 2) >= c->mon->wx)
 	           && (c->x + (c->w / 2) < c->mon->wx + c->mon->ww)) ? bh : c->mon->my);
 	c->bw = borderpx;
-
-    /* Set current xkb state */
-    xkb = findxkb(c->win);
-    if (xkb == NULL) {
-        xkb = malloc(sizeof *xkb);
-        if (xkb == NULL) {
-            die("fatal: could not malloc() %u bytes\n", sizeof *xkb);
-        }
-        xkb->group = xkbGlobal.group;
-        xkb->w = c->win;
-        xkb->next = xkbSaved;
-        if (xkbSaved != NULL) {
-            xkbSaved->prev = xkb;
-        }
-        xkb->prev = NULL;
-        xkbSaved = xkb;
-    }
-    c->xkb = xkb;
 
 	wc.border_width = c->bw;
 	XConfigureWindow(dpy, w, CWBorderWidth, &wc);
