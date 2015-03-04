@@ -21,15 +21,22 @@ static const Rule rules[] = {
 	 *	WM_CLASS(STRING) = instance, class
 	 *	WM_NAME(STRING) = title
 	 */
-	/* class      instance    title       tags mask     isfloating   monitor */
-	{ "Gimp",     NULL,       NULL,       0,            True,        -1 },
-	{ "Firefox",  NULL,       NULL,       1 << 8,       False,       -1 },
+	/* class      instance    title       tags mask     isfloating   monitor xkb_layout */
+	{ "Gimp",     NULL,       NULL,       0,            True,        -1,     0 },
+	{ "Firefox",  NULL,       NULL,       1 << 8,       False,       -1,     -1 },
 };
 
 /* layout(s) */
 static const float mfact      = 0.55; /* factor of master area size [0.05..0.95] */
 static const int nmaster      = 1;    /* number of clients in master area */
 static const Bool resizehints = True; /* True means respect size hints in tiled resizals */
+
+/* xkb frontend */
+static const Bool showxkb         = True; /* False means no xkb layout text */
+static const char *xkb_layouts [] = {
+    "en",
+    "ru",
+};
 
 static const Layout layouts[] = {
 	/* symbol     arrange function */

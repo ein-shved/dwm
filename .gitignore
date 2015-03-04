@@ -1,0 +1,10 @@
+:::w
+Session.vim
+config.h
+drw.o
+dwm
+dwm.c.orig
+dwm.no_tray.c
+dwm.o
+tags
+util.o
