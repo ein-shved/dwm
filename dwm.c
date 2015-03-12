@@ -601,7 +601,10 @@ clientmessage(XEvent *e) {
 		if(cme->data.l[1] == SYSTEM_TRAY_REQUEST_DOCK) {
 			if(!(c = (Client *)calloc(1, sizeof(Client))))
 				die("fatal: could not malloc() %u bytes\n", sizeof(Client));
-			c->win = cme->data.l[2];
+			if(!(c->win = cme->data.l[2])) {
+                free(c);
+                return;
+            }
 			c->mon = selmon;
 			c->next = systray->icons;
 			systray->icons = c;
@@ -2168,8 +2171,7 @@ unmapnotify(XEvent *e) {
 			unmanage(c, False);
 	}
 	else if((c = wintosystrayicon(ev->window))) {
-		removesystrayicon(c);
-		resizebarwin(selmon);
+        XMapRaised(dpy, c->win);
 		updatesystray();
 	}
 }
