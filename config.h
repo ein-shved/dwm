@@ -48,6 +48,7 @@ static const Rule rules[] = {
     { NULL,       NULL,       "Guake!",   ~0,           True,         0,       0 },
     { "Skype",    NULL,       NULL,       1 << 8,       False,       -1,      -1 },
     { "Pidgin",   NULL,       NULL,       1 << 8,       False,       -1,       1 },
+    { "hipchat",  NULL,       NULL,       1 << 8,       False,       -1,       1 },
 };
 
 /* layout(s) */
