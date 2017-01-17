@@ -44,8 +44,11 @@ static const Rule rules[] = {
 	 *	WM_NAME(STRING) = title
 	 */
 	/* class      instance    title       tags mask     isfloating   monitor xkb_layout*/
-	{ "Firefox",  NULL,       NULL,       1 << 2,       False,       -1,      -1 },
-    { NULL,       NULL,       "Guake!",   ~0,           True,         0,       0 },
+    { "Firefox",  NULL,       NULL,       1 << 2,       False,       -1,      -1 },
+    { "chromium", NULL,       NULL,       1 << 2,       False,       -1,      -1 },
+    { "google-chrome", NULL,  NULL,       1 << 2,       False,       -1,      -1 },
+    { NULL,       NULL,       "Guake!",   ~0,           True,        ~0,      ~0 },
+    { "guake",    NULL,       NULL,       ~0,           True,        ~0,      ~0 },
     { "Skype",    NULL,       NULL,       1 << 8,       False,       -1,      -1 },
     { "Pidgin",   NULL,       NULL,       1 << 8,       False,       -1,       1 },
     { "hipchat",  NULL,       NULL,       1 << 8,       False,       -1,       1 },
@@ -83,18 +86,20 @@ static const Layout layouts[] = {
 
 /* commands */
 static char dmenumon[2] = "0"; /* component of dmenucmd, manipulated in spawn() */
-static const char *dmenucmd[] = { "dmenu-recent", "-fn", font, "-nb", normbgcolor, "-nf", normfgcolor, "-sb", selbgcolor, "-sf", selfgcolor, "-f", NULL };
+static const char *dmenucmd[] = { "dmenu_run", "-fn", font, "-nb", normbgcolor, "-nf", normfgcolor, "-sb", selbgcolor, "-sf", selfgcolor, "-f", NULL };
 static const char *termcmd[]  = { "st", NULL };
 
-static const char *volume_mute[]      = { "pamixer", "--toggle-mute", NULL };
-static const char *volume_up[]        = { "pamixer", "--increase", "5", NULL };
-static const char *volume_down[]      = { "pamixer", "--decrease", "5", NULL };
-static const char *volume_xmms_up[]   = { "amixer", "sset", "xmms2", "10+", NULL };
-static const char *volume_xmms_down[] = { "amixer", "sset", "xmms2", "10-", NULL };
-static const char *xmms_toggle[]      = { "xmms2", "toggle", NULL };
-static const char *xmms_next[]        = { "xmms2", "next", NULL };
-static const char *xmms_prev[]        = { "xmms2", "prev", NULL };
-static const char *screensaver[]      = { "xscreensaver-command", "--lock", NULL };
+static const char *volume_mute[]      = { "amixer", "sset", "Master", "togglemute", NULL };
+static const char *volume_up[]        = { "amixer", "sset", "Master", "10+", NULL };
+static const char *volume_down[]      = { "amixer", "sset", "Master", "10-", NULL };
+static const char *volume_player_up[]   = { "clementine", "--volume-up", NULL };
+static const char *volume_player_down[] = { "clementine", "--volume-down", NULL };
+static const char *player_toggle[]      = { "clementine", "-t", NULL };
+static const char *player_next[]        = { "clementine", "-f", NULL };
+static const char *player_prev[]        = { "clementine", "-r", NULL };
+static const char *screensaver[]      = { "dm-tool", "lock", NULL };
+static const char *backlight_up[]     = { "xbacklight", "+", "10", NULL };
+static const char *backlight_down[]   = { "xbacklight", "-", "10", NULL };
 
 
 static Key keys[] = {
@@ -146,12 +151,20 @@ static Key keys[] = {
     { 0,            XF86XK_AudioMute,          spawn,          { .v = volume_mute } },
     { 0,            XF86XK_AudioRaiseVolume,   spawn,          { .v = volume_up } },
     { 0,            XF86XK_AudioLowerVolume,   spawn,          { .v = volume_down } },
-    { ControlMask,  XF86XK_AudioRaiseVolume,   spawn,          { .v = volume_xmms_up } },
-    { ControlMask,  XF86XK_AudioLowerVolume,   spawn,          { .v = volume_xmms_down } },
-    { 0,            XF86XK_AudioPlay,          spawn,          { .v = xmms_toggle } },
-    { 0,            XF86XK_AudioNext,          spawn,          { .v = xmms_next } },
-    { 0,            XF86XK_AudioPrev,          spawn,          { .v = xmms_prev } },
-    { MODKEY|ControlMask,   XK_BackSpace,      spawn,          { .v = screensaver } },
+    { ControlMask,  XF86XK_AudioRaiseVolume,   spawn,          { .v = volume_player_up } },
+    { ControlMask,  XF86XK_AudioLowerVolume,   spawn,          { .v = volume_player_down } },
+    { 0,            XF86XK_AudioPlay,          spawn,          { .v = player_toggle } },
+    { 0,            XF86XK_AudioNext,          spawn,          { .v = player_next } },
+    { 0,            XF86XK_AudioPrev,          spawn,          { .v = player_prev } },
+    { 0,            XK_Redo,                   spawn,          { .v = player_toggle } },
+    { 0,            XF86XK_MyComputer,         spawn,          { .v = player_toggle } },
+    { 0,            XF86XK_Cut,                spawn,          { .v = player_next } },
+    { 0,            XK_Find,                   spawn,          { .v = player_prev } },
+    { 0,            XF86XK_Forward,            spawn,          { .v = player_next } },
+    { 0,            XF86XK_Back,               spawn,          { .v = player_next } },
+    { MODKEY|ControlMask,   XK_l,              spawn,          { .v = screensaver } },
+    { 0,            XF86XK_MonBrightnessUp,    spawn,          { .v = backlight_up } },
+    { 0,            XF86XK_MonBrightnessDown,  spawn,          { .v = backlight_down } },
 };
 
 /* button definitions */
